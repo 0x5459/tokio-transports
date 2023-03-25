@@ -220,6 +220,8 @@ impl Future for RestartFuture {
                 RestartStateProj::Init(cmd) => RestartState::Started(Some(cmd.spawn()?)),
                 RestartStateProj::Started(child) => {
                     let mut child = child.take().unwrap();
+                    #[cfg(feature = "tracing")]
+                    tracing::debug!(pid=?child.id(), "child process was started");
 
                     // ready_msg is None, which means there is no need to
                     // wait for the child process to be ready
