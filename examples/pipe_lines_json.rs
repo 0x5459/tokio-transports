@@ -1,4 +1,7 @@
-use std::env::{self, current_exe};
+use std::{
+    env::{self, current_exe},
+    time::Duration,
+};
 
 use anyhow::Context;
 use futures::{SinkExt, StreamExt};
@@ -22,7 +25,8 @@ async fn main() -> anyhow::Result<()> {
 async fn producer() -> anyhow::Result<()> {
     let cmd = pipe::Command::new(current_exe()?)
         .args(vec!["consumer"])
-        .ready_message(ready_message());
+        .ready_message(ready_message())
+        .ready_timeout(Duration::from_secs(3));
     let transport = pipe::connect(cmd) // start consumer as a child process
         .framed_default::<LinesCodec>() // use lines codec
         .serded_default::<Json<_, _>, String, String>(); // use json to serialize and deserialize messages

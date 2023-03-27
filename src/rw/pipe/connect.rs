@@ -3,10 +3,8 @@ use std::{
     ffi::OsString,
     future::Future,
     io,
-    marker::PhantomPinned,
     path::PathBuf,
     pin::Pin,
-    ptr::NonNull,
     task::{ready, Context, Poll},
     time::Duration,
 };
@@ -229,13 +227,11 @@ impl Future for RestartFuture {
                         return Poll::Ready(Ok(child));
                     }
 
-                    let child_stdout = BufReader::new(Box::pin(SelfRefReader::new(unsafe {
-                        NonNull::new_unchecked(child.stdout.as_mut().unwrap() as *mut _)
-                    })));
+                    let child_stdout = BufReader::new(child.stdout.take().unwrap());
 
                     RestartState::WaitReadyMsg {
                         child: Some(child),
-                        lines: child_stdout.lines(),
+                        lines: Some(child_stdout.lines()),
                         timeout: pinned.stable_timeout.map(|x| Box::pin(sleep(x))),
                     }
                 }
@@ -254,7 +250,7 @@ impl Future for RestartFuture {
                         }
                     }
 
-                    let next_line = ready!(lines.poll_next_line(cx))?;
+                    let next_line = ready!(Pin::new(lines.as_mut().unwrap()).poll_next_line(cx))?;
                     return Poll::Ready(match next_line {
                         Some(x) if Some(x.trim()) != pinned.ready_msg.as_deref() => {
                             Err(io::Error::new(
@@ -266,7 +262,17 @@ impl Future for RestartFuture {
                             io::ErrorKind::UnexpectedEof,
                             "unexpected first line: EOF",
                         )),
-                        _ => Ok(child.take().unwrap()),
+                        _ => {
+                            let mut child = child.take().expect("polled after complete");
+                            child.stdout = Some(
+                                lines
+                                    .take()
+                                    .expect("polled after complete")
+                                    .into_inner()
+                                    .into_inner(),
+                            );
+                            Ok(child)
+                        }
                     });
                 }
             };
@@ -281,39 +287,9 @@ enum RestartState {
     Started(Option<Child>),
     WaitReadyMsg {
         child: Option<Child>,
-        #[pin]
-        lines: Lines<BufReader<Pin<Box<SelfRefReader<ChildStdout>>>>>,
+        lines: Option<Lines<BufReader<ChildStdout>>>,
         timeout: Option<Pin<Box<Sleep>>>,
     },
-}
-
-unsafe impl<T> Send for SelfRefReader<T> {}
-
-/// A wrapper around a self-referencing reader that we can impl AsyncRead on.
-struct SelfRefReader<T> {
-    inner: NonNull<T>,
-    /// Ensure the type is !Unpin
-    _pin: PhantomPinned,
-}
-
-impl<T> SelfRefReader<T> {
-    fn new(inner: NonNull<T>) -> Self {
-        Self {
-            inner,
-            _pin: PhantomPinned,
-        }
-    }
-}
-
-impl<T: AsyncRead + Unpin> AsyncRead for SelfRefReader<T> {
-    fn poll_read(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut tokio::io::ReadBuf<'_>,
-    ) -> Poll<io::Result<()>> {
-        let inner = Pin::new(unsafe { self.get_unchecked_mut().inner.as_mut() });
-        inner.poll_read(cx, buf)
-    }
 }
 
 /// A `process::Command` builder.
