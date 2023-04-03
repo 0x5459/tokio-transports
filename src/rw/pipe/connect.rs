@@ -22,7 +22,7 @@ use tokio::{
 /// ```
 /// use tokio::io::{AsyncReadExt, AsyncWriteExt};
 ///
-/// use tokio_transport::rw::{
+/// use tokio_transports::rw::{
 ///     pipe::{connect, Command},
 ///     util::ReadWriterExt,
 /// };

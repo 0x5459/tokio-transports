@@ -4,7 +4,7 @@ use tokio::{
     io::{stdin, AsyncBufReadExt, BufReader},
     net::TcpStream,
 };
-use tokio_transport::{
+use tokio_transports::{
     framed::{FramedExt, LinesCodec},
     rw::ReadWriterExt,
     serded::Json,

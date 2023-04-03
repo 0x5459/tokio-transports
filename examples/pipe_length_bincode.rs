@@ -3,7 +3,7 @@ use std::env::{self, current_exe};
 use anyhow::Context;
 use futures::{SinkExt, StreamExt};
 use tokio::io::{stdin, AsyncBufReadExt, BufReader};
-use tokio_transport::{
+use tokio_transports::{
     framed::FramedExt,
     rw::{pipe, ReadWriterExt},
     serded::Bincode,
