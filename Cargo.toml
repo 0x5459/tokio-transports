@@ -6,7 +6,7 @@ license = "MIT OR Apache-2.0"
 homepage = "https://github.com/0x5459/tokio-transports"
 repository = "https://github.com/0x5459/tokio-transports"
 keywords = ["ipc", "transport", "tokio", "network", "pipe"]
-categories = ["asynchronous", "tokio"]
+categories = ["asynchronous"]
 readme = "README.md"
 description = "tokio-transports is used for communication between processes."
 
